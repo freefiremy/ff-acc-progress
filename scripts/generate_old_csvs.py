@@ -12,14 +12,22 @@ from __future__ import annotations
 
 import calendar
 import csv
+import sys
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-UID = "2805365702"
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from scripts.config import DEFAULT_UID
+
+BASE_DIR = PROJECT_ROOT
+UID = DEFAULT_UID
 SOURCE_PATH = BASE_DIR / "old_data.csv"
 OUTPUT_DIR = BASE_DIR
 MONTHLY_HEADER = [

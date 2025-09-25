@@ -17,7 +17,8 @@ This repository tracks daily Free Fire account progress automatically.
 
 ## Configuration
 
-- Change the `FREEFIRE_UID` environment variable in the workflow file if you want to log a different account.
+- Update the defaults in `scripts/config.py` to change the tracked UID or API endpoint.
+- Change the `FREEFIRE_UID` environment variable in the workflow file if you want to log a different account without editing the repo.
 - You can also run the script locally:
 
   ```bash
