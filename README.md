@@ -8,6 +8,13 @@ This repository tracks daily Free Fire account progress automatically.
 - Day-over-day changes (gains) are computed automatically from the previous entry.
 - A scheduled GitHub Action (`.github/workflows/daily-freefire-log.yml`) runs every day at 08:00 Asia/Colombo (UTC+5:30) and commits the updated CSV back to the repository.
 
+## Backfilling historical data
+
+- Manually recorded progress that predates the automation lives in `data/old_data.csv`.
+- Run `python generate_old_csvs.py` after editing the file to regenerate:
+  - One CSV per month (`data/old_logs/{year} {month} {UID}.csv`). Missing columns from the automated log are left blank.
+  - `data/old_logs/summary.csv`, which summarizes the monthly and yearly XP totals for quick insights.
+
 ## Configuration
 
 - Change the `FREEFIRE_UID` environment variable in the workflow file if you want to log a different account.
