@@ -20,7 +20,7 @@ from typing import Dict, Iterable, List
 
 UID = "2805365702"
 SOURCE_PATH = Path("data/old_data.csv")
-OUTPUT_DIR = Path("data/old_logs")
+OUTPUT_DIR = Path("data")
 MONTHLY_HEADER = [
     "Date",
     "BR Score",
