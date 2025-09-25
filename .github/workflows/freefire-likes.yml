@@ -1,18 +1,31 @@
-name: Daily Free Fire Log
+name: Free Fire Likes Booster
 
 on:
   schedule:
-    - cron: "30 2 * * *"
+    - cron: "30 18 * * *"
+    - cron: "0 19 * * *"
+    - cron: "30 19 * * *"
+    - cron: "0 20 * * *"
+    - cron: "30 20 * * *"
+    - cron: "0 21 * * *"
+    - cron: "30 21 * * *"
+    - cron: "0 22 * * *"
+    - cron: "30 22 * * *"
+    - cron: "0 23 * * *"
+    - cron: "30 23 * * *"
+    - cron: "0 0 * * *"
+    - cron: "30 0 * * *"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 jobs:
-  run:
+  give-likes:
     runs-on: ubuntu-latest
     env:
-      FREEFIRE_UID: "2805365702"
+      FREEFIRE_LIKES_UID: "923824741"
+      FREEFIRE_LIKES_KEY: "astute2k3"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,29 +40,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r scripts/requirements.txt
 
-      - name: Run fetcher
+      - name: Attempt to send likes
         run: |
-          python scripts/fetch_and_append.py
+          python scripts/send_likes.py
 
       - name: Commit & push if changed
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          MONTHLY_FILE=$(python - <<'PY'
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-          import os
-
-          uid = os.environ["FREEFIRE_UID"]
-          now = datetime.now(ZoneInfo("Asia/Colombo"))
-          print(f"{now.year} {now.strftime('%B')} {uid}.csv")
-          PY
-          )
-          git add -- "summary.csv" "$MONTHLY_FILE"
+          git add -- "likes_activity.csv"
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "Daily update: freefire log"
-            git pull --rebase origin "$GITHUB_REF_NAME"
+            git commit -m "Automated likes update"
+            git pull --rebase origin ""
             git push
           fi
