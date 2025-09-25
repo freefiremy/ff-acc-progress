@@ -4,6 +4,7 @@ from __future__ import annotations
 import calendar
 import csv
 import os
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -12,9 +13,15 @@ from zoneinfo import ZoneInfo
 
 import requests
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-UID = os.getenv("FREEFIRE_UID", "2805365702")
-API_URL = f"https://7ama-info.vercel.app/info?uid={UID}"
+SCRIPT_DIR = Path(__file__).resolve().parent
+BASE_DIR = SCRIPT_DIR.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from scripts.config import DEFAULT_UID, build_api_url
+
+UID = os.getenv("FREEFIRE_UID", DEFAULT_UID)
+API_URL = build_api_url(UID)
 
 MONTHLY_HEADER = [
     "Date",
