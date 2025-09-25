@@ -13,7 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       FREEFIRE_UID: "2805365702"
-      CSV_PATH: "freefire_daily.csv"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,11 +25,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r scripts/requirements.txt
 
       - name: Run fetcher
         run: |
-          python fetch_and_append.py
+          python scripts/fetch_and_append.py
 
       - name: Commit & push if changed
         run: |
@@ -46,6 +45,6 @@ now = datetime.now(ZoneInfo("Asia/Colombo"))
 print(f"{now.year} {now.strftime('%B')} {uid}.csv")
 PY
 )
-          git add -- "$CSV_PATH" "summary.csv" "$MONTHLY_FILE"
+          git add -- "summary.csv" "$MONTHLY_FILE"
           git diff --staged --quiet || git commit -m "Daily update: freefire log"
           git push

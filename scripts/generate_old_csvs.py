@@ -18,9 +18,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 UID = "2805365702"
-SOURCE_PATH = Path("old_data.csv")
-OUTPUT_DIR = Path(".")
+SOURCE_PATH = BASE_DIR / "old_data.csv"
+OUTPUT_DIR = BASE_DIR
 MONTHLY_HEADER = [
     "Date",
     "BR Score",

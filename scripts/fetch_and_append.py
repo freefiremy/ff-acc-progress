@@ -1,17 +1,20 @@
+"""Daily Free Fire progress fetcher that updates monthly CSV exports."""
+from __future__ import annotations
+
 import calendar
 import csv
 import os
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterator, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 import requests
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 UID = os.getenv("FREEFIRE_UID", "2805365702")
 API_URL = f"https://7ama-info.vercel.app/info?uid={UID}"
-CSV_PATH = os.getenv("CSV_PATH", "freefire_daily.csv")
 
 MONTHLY_HEADER = [
     "Date",
@@ -33,6 +36,7 @@ SUMMARY_HEADER = [
     "Total XP Gained",
     "Average Daily XP Gained",
 ]
+
 TIMEZONE = ZoneInfo("Asia/Colombo")
 
 
@@ -40,61 +44,10 @@ def format_mdY(dt: datetime) -> str:
     return f"{dt.month}/{dt.day}/{dt.year}"
 
 
-def read_last_row(path: str):
-    if not os.path.exists(path):
-        return None
-    with open(path, "r", newline="", encoding="utf-8") as csvfile:
-        rows = list(csv.DictReader(csvfile))
-    return rows[-1] if rows else None
-
-
-def write_header_if_needed(path: str) -> None:
-    if not os.path.exists(path):
-        with open(path, "w", newline="", encoding="utf-8") as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(
-                [
-                    "Date",
-                    "BR Score",
-                    "Rank Gained",
-                    "Likes",
-                    "Likes Gained",
-                    "XP",
-                    "XP Gained",
-                ]
-            )
-
-
-def append_row(path: str, row_dict: dict) -> None:
-    with open(path, "a", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(
-            [
-                row_dict["Date"],
-                row_dict["BR Score"],
-                row_dict["Rank Gained"],
-                row_dict["Likes"],
-                row_dict["Likes Gained"],
-                row_dict["XP"],
-                row_dict["XP Gained"],
-            ]
-        )
-
-
-def already_logged_today(path: str, today_str: str) -> bool:
-    if not os.path.exists(path):
-        return False
-    with open(path, "r", newline="", encoding="utf-8") as csvfile:
-        for row in csv.DictReader(csvfile):
-            if row.get("Date") == today_str:
-                return True
-    return False
-
-
 def monthly_file_path(dt: datetime) -> Path:
     month_name = calendar.month_name[dt.month]
     filename = f"{dt.year} {month_name} {UID}.csv"
-    return Path(filename)
+    return BASE_DIR / filename
 
 
 def ensure_monthly_header(path: Path) -> None:
@@ -115,28 +68,31 @@ def monthly_already_logged(path: Path, today_str: str) -> bool:
     return False
 
 
-def append_monthly_entry(dt: datetime, today_str: str, xp: int, xp_gained: int) -> None:
-    path = monthly_file_path(dt)
-    ensure_monthly_header(path)
-    if monthly_already_logged(path, today_str):
-        return
-    with path.open("a", newline="", encoding="utf-8") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(
-            [
-                today_str,
-                "",
-                "",
-                "",
-                "",
-                xp,
-                xp_gained if xp_gained else "",
-                "",
-            ]
-        )
+def parse_monthly_filename(path: Path) -> Tuple[int, int]:
+    parts = path.stem.split(" ")
+    if len(parts) != 3 or not parts[0].isdigit() or parts[2] != UID:
+        raise ValueError(f"Unexpected monthly filename format: {path.name}")
+    year = int(parts[0])
+    month = datetime.strptime(parts[1], "%B").month
+    return year, month
 
 
-def parse_int(value: str) -> int | None:
+def iter_monthly_files() -> Iterator[Path]:
+    paths: List[Tuple[int, int, Path]] = []
+    for candidate in BASE_DIR.glob(f"* {UID}.csv"):
+        if candidate.is_file():
+            try:
+                year, month = parse_monthly_filename(candidate)
+            except ValueError:
+                continue
+            paths.append((year, month, candidate))
+    for _, _, path in sorted(paths, key=lambda item: (item[0], item[1])):
+        yield path
+
+
+def parse_int(value: Optional[str]) -> Optional[int]:
+    if value is None:
+        return None
     value = value.strip()
     if not value:
         return None
@@ -147,28 +103,54 @@ def parse_int(value: str) -> int | None:
         return None
 
 
+def load_last_logged_entry() -> Tuple[Optional[Dict[str, str]], Optional[Path]]:
+    last_row: Optional[Dict[str, str]] = None
+    last_path: Optional[Path] = None
+    for path in iter_monthly_files():
+        with path.open("r", newline="", encoding="utf-8") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                if row.get("Date"):
+                    last_row = row
+                    last_path = path
+    return last_row, last_path
+
+
+def append_monthly_entry(path: Path, row: Dict[str, object]) -> None:
+    ensure_monthly_header(path)
+    today = row["Date"]
+    if today and monthly_already_logged(path, today):
+        return
+
+    ordered = [
+        row.get("Date", ""),
+        row.get("BR Score", ""),
+        row.get("Rank Gained", ""),
+        row.get("Likes", ""),
+        row.get("Likes Gained", ""),
+        row.get("XP", ""),
+        row.get("XP Gained", ""),
+        row.get("Notes", ""),
+    ]
+
+    with path.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(ordered)
+
+
 def load_monthly_stats(path: Path) -> Tuple[int, int, Dict[str, float]]:
-    parts = path.stem.split(" ")
-    if len(parts) != 3 or not parts[0].isdigit() or parts[2] != UID:
-        raise ValueError(f"Unexpected monthly filename format: {path.name}")
-
-    year = int(parts[0])
-    month_name = parts[1]
-    month_number = datetime.strptime(month_name, "%B").month
-
+    year, month_number = parse_monthly_filename(path)
     with path.open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
         xp_values: List[int] = []
         xp_gains: List[int] = []
         for row in reader:
-            xp = row.get("XP", "")
-            parsed_xp = parse_int(xp) if xp is not None else None
-            if parsed_xp is not None:
-                xp_values.append(parsed_xp)
-            xp_gain_raw = row.get("XP Gained", "")
-            parsed_gain = parse_int(xp_gain_raw) if xp_gain_raw is not None else None
-            if parsed_gain is not None:
-                xp_gains.append(parsed_gain)
+            xp = parse_int(row.get("XP"))
+            if xp is not None:
+                xp_values.append(xp)
+            xp_gain = parse_int(row.get("XP Gained"))
+            if xp_gain is not None:
+                xp_gains.append(xp_gain)
 
     if not xp_values:
         raise ValueError(f"Monthly file {path} contains no XP data")
@@ -190,14 +172,9 @@ def load_monthly_stats(path: Path) -> Tuple[int, int, Dict[str, float]]:
 
 
 def update_summary() -> None:
-    summary_path = Path("summary.csv")
-    monthly_paths = sorted(
-        (p for p in Path(".").glob(f"* {UID}.csv") if p.is_file()),
-        key=lambda p: p.stem,
-    )
-
+    summary_path = BASE_DIR / "summary.csv"
     month_stats: List[Tuple[int, int, Dict[str, float]]] = []
-    for path in monthly_paths:
+    for path in iter_monthly_files():
         try:
             stats = load_monthly_stats(path)
         except ValueError:
@@ -262,46 +239,32 @@ def main() -> None:
     likes = int(basic_info.get("liked", 0))
     xp = int(basic_info.get("exp", 0))
 
-    write_header_if_needed(CSV_PATH)
-
-    if already_logged_today(CSV_PATH, today_str):
+    current_month_path = monthly_file_path(now_colombo)
+    last_row, last_path = load_last_logged_entry()
+    if last_row and last_row.get("Date") == today_str and last_path == current_month_path:
         print(f"Row for {today_str} already exists; no changes.")
         return
 
-    last_row = read_last_row(CSV_PATH)
-    if last_row:
-        try:
-            last_br = int(last_row.get("BR Score", 0))
-        except (TypeError, ValueError):
-            last_br = 0
-        try:
-            last_likes = int(last_row.get("Likes", 0))
-        except (TypeError, ValueError):
-            last_likes = 0
-        try:
-            last_xp = int(last_row.get("XP", 0))
-        except (TypeError, ValueError):
-            last_xp = 0
-        rank_gained = ranking_points - last_br
-        likes_gained = likes - last_likes
-        xp_gained = xp - last_xp
-    else:
-        rank_gained = 0
-        likes_gained = 0
-        xp_gained = 0
+    last_br = parse_int(last_row.get("BR Score")) if last_row else None
+    last_likes = parse_int(last_row.get("Likes")) if last_row else None
+    last_xp = parse_int(last_row.get("XP")) if last_row else None
+
+    rank_gained = ranking_points - last_br if last_br is not None else 0
+    likes_gained = likes - last_likes if last_likes is not None else 0
+    xp_gained = xp - last_xp if last_xp is not None else 0
 
     row = {
         "Date": today_str,
         "BR Score": ranking_points,
-        "Rank Gained": rank_gained,
+        "Rank Gained": rank_gained if rank_gained else "",
         "Likes": likes,
-        "Likes Gained": likes_gained,
+        "Likes Gained": likes_gained if likes_gained else "",
         "XP": xp,
-        "XP Gained": xp_gained,
+        "XP Gained": xp_gained if xp_gained else "",
+        "Notes": "",
     }
 
-    append_row(CSV_PATH, row)
-    append_monthly_entry(now_colombo, today_str, xp, xp_gained)
+    append_monthly_entry(current_month_path, row)
     update_summary()
     print("Appended:", row)
 
