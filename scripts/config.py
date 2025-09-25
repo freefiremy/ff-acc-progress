@@ -6,7 +6,7 @@ API_BASE_URL = "https://7ama-info.vercel.app"
 API_INFO_ENDPOINT = "/info"
 
 LIKES_API_BASE_URL = "https://likes.api.freefireofficial.com/api/sg"
-DEFAULT_LIKES_UID = "2805365702"
+DEFAULT_LIKES_UID = DEFAULT_UID
 DEFAULT_LIKES_API_KEY = "astute2k3"
 
 
