@@ -36,6 +36,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$CSV_PATH"
+          MONTHLY_FILE=$(python - <<'PY'
+from datetime import datetime
+from zoneinfo import ZoneInfo
+import os
+
+uid = os.environ["FREEFIRE_UID"]
+now = datetime.now(ZoneInfo("Asia/Colombo"))
+print(f"{now.year} {now.strftime('%B')} {uid}.csv")
+PY
+)
+          git add -- "$CSV_PATH" "summary.csv" "$MONTHLY_FILE"
           git diff --staged --quiet || git commit -m "Daily update: freefire log"
           git push

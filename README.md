@@ -10,10 +10,10 @@ This repository tracks daily Free Fire account progress automatically.
 
 ## Backfilling historical data
 
-- Manually recorded progress that predates the automation lives in `data/old_data.csv`.
+- Manually recorded progress that predates the automation lives in `old_data.csv`.
 - Run `python generate_old_csvs.py` after editing the file to regenerate:
-  - One CSV per month (`data/{year} {month} {UID}.csv`). Missing columns from the automated log are left blank.
-  - `data/summary.csv`, which summarizes the monthly and yearly XP totals for quick insights.
+  - One CSV per month (`{year} {month} {UID}.csv`) stored alongside the other project files. Missing columns from the automated log are left blank.
+  - `summary.csv`, which summarizes the monthly and yearly XP totals for quick insights.
 
 ## Configuration
 

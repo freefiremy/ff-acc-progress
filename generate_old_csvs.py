@@ -1,12 +1,12 @@
 """Utility to backfill historical Free Fire progress data into monthly CSV files.
 
-This script reads the manually recorded data in ``data/old_data.csv`` and emits a
-CSV per calendar month following the ``{year} {month} {uid}.csv`` naming
-convention.  It also writes a ``summary.csv`` file that aggregates the monthly
+This script reads the manually recorded data in ``old_data.csv`` and emits a CSV
+per calendar month following the ``{year} {month} {uid}.csv`` naming
+convention. It also writes a ``summary.csv`` file that aggregates the monthly
 and yearly totals to make the historical trends easier to inspect.
 
-Run the script once after updating ``data/old_data.csv`` to refresh the derived
-CSV files.
+Run the script once after updating ``old_data.csv`` to refresh the derived CSV
+files.
 """
 from __future__ import annotations
 
@@ -19,8 +19,8 @@ from pathlib import Path
 from typing import Dict, Iterable, List
 
 UID = "2805365702"
-SOURCE_PATH = Path("data/old_data.csv")
-OUTPUT_DIR = Path("data")
+SOURCE_PATH = Path("old_data.csv")
+OUTPUT_DIR = Path(".")
 MONTHLY_HEADER = [
     "Date",
     "BR Score",
