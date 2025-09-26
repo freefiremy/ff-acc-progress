@@ -111,7 +111,7 @@ def append_log_entry(
                 likes_before,
                 likes_after,
                 likes_received,
-                "True" if success else "False",
+                "TRUE" if success else "FALSE",
             ]
         )
 
