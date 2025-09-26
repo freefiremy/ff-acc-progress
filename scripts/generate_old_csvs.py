@@ -1,7 +1,7 @@
 """Utility to backfill historical Free Fire progress data into monthly CSV files.
 
 This script reads the manually recorded data in ``old_data.csv`` and emits a CSV
-per calendar month following the ``{year} {month} {uid}.csv`` naming
+per calendar month following the ``{year} {month:02d}.CSV`` naming
 convention. It also writes a ``summary.csv`` file that aggregates the monthly
 and yearly totals to make the historical trends easier to inspect.
 
@@ -24,10 +24,7 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.config import DEFAULT_UID
-
 BASE_DIR = PROJECT_ROOT
-UID = DEFAULT_UID
 SOURCE_PATH = BASE_DIR / "old_data.csv"
 OUTPUT_DIR = BASE_DIR
 MONTHLY_HEADER = [
@@ -97,8 +94,7 @@ def write_monthly_files(data: Iterable[DataPoint]) -> Dict[int, List[DataPoint]]
     for year, months in by_year.items():
         for month, rows in months.items():
             rows.sort(key=lambda p: p.date)
-            month_name = calendar.month_name[month]
-            filename = f"{year} {month_name} {UID}.csv"
+            filename = f"{year} {month:02d}.CSV"
             path = OUTPUT_DIR / filename
 
             with path.open("w", newline="", encoding="utf-8") as handle:

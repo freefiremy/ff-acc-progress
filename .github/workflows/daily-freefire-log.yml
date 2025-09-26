@@ -38,11 +38,9 @@ jobs:
           MONTHLY_FILE=$(python - <<'PY'
           from datetime import datetime
           from zoneinfo import ZoneInfo
-          import os
 
-          uid = os.environ["FREEFIRE_UID"]
           now = datetime.now(ZoneInfo("Asia/Colombo"))
-          print(f"{now.year} {now.strftime('%B')} {uid}.csv")
+          print(f"{now.year} {now.strftime('%m')}.CSV")
           PY
           )
           git add -- "summary.csv" "$MONTHLY_FILE"

@@ -52,8 +52,7 @@ def format_mdY(dt: datetime) -> str:
 
 
 def monthly_file_path(dt: datetime) -> Path:
-    month_name = calendar.month_name[dt.month]
-    filename = f"{dt.year} {month_name} {UID}.csv"
+    filename = f"{dt.year} {dt.strftime('%m')}.CSV"
     return BASE_DIR / filename
 
 
@@ -76,17 +75,21 @@ def monthly_already_logged(path: Path, today_str: str) -> bool:
 
 
 def parse_monthly_filename(path: Path) -> Tuple[int, int]:
+    if path.suffix.lower() != ".csv":
+        raise ValueError(f"Unexpected monthly filename format: {path.name}")
     parts = path.stem.split(" ")
-    if len(parts) != 3 or not parts[0].isdigit() or parts[2] != UID:
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
         raise ValueError(f"Unexpected monthly filename format: {path.name}")
     year = int(parts[0])
-    month = datetime.strptime(parts[1], "%B").month
+    month = int(parts[1])
+    if not 1 <= month <= 12:
+        raise ValueError(f"Unexpected monthly filename format: {path.name}")
     return year, month
 
 
 def iter_monthly_files() -> Iterator[Path]:
     paths: List[Tuple[int, int, Path]] = []
-    for candidate in BASE_DIR.glob(f"* {UID}.csv"):
+    for candidate in BASE_DIR.glob('*.[cC][sS][vV]'):
         if candidate.is_file():
             try:
                 year, month = parse_monthly_filename(candidate)
