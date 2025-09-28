@@ -3,11 +3,14 @@ from __future__ import annotations
 
 import csv
 import os
+import sys
 from pathlib import Path
 from typing import List
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 PLAYERS_DIR = PROJECT_ROOT / "players"
 
 from scripts.config import DEFAULT_LIKES_UIDS, parse_uid_list
