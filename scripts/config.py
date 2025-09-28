@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Dict, Iterable, List, Optional, Sequence
 
-DEFAULT_UIDS: List[str] = ["2805365702"]
+DEFAULT_UIDS: List[str] = ["2805365702", "667352678"]
 DEFAULT_UID = DEFAULT_UIDS[0]
 API_BASE_URL = "https://7ama-info.vercel.app"
 API_INFO_ENDPOINT = "/info"
