@@ -38,9 +38,14 @@ def determine_target_uids() -> List[str]:
         candidates = parse_uid_list(single_raw, DEFAULT_UIDS)
     else:
         candidates = DEFAULT_UIDS
-    if not candidates:
+    deduped: List[str] = []
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if candidate and candidate not in deduped:
+            deduped.append(candidate)
+    if not deduped:
         raise ValueError("No FREEFIRE UID configured.")
-    return candidates
+    return deduped
 
 
 MONTHLY_HEADER = [
