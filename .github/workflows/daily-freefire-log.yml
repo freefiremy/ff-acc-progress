@@ -11,11 +11,18 @@ permissions:
 jobs:
   run:
     runs-on: ubuntu-latest
-    env:
-      FREEFIRE_UID: "2805365702"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Load workflow defaults
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          from scripts.config import default_env_vars
+          defaults = default_env_vars()
+          print(f"FREEFIRE_UID={defaults['FREEFIRE_UID']}")
+          print(f"FREEFIRE_UIDS={defaults.get('FREEFIRE_UIDS', '')}")
+          PY
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -35,15 +42,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          MONTHLY_FILE=$(python - <<'PY'
-          from datetime import datetime
-          from zoneinfo import ZoneInfo
-
-          now = datetime.now(ZoneInfo("Asia/Colombo"))
-          print(f"{now.year} {now.strftime('%m')}.CSV")
-          PY
-          )
-          git add -- "summary.csv" "$MONTHLY_FILE"
+          git add -- "players"
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else

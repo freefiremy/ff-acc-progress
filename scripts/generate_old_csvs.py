@@ -1,17 +1,9 @@
-"""Utility to backfill historical Free Fire progress data into monthly CSV files.
-
-This script reads the manually recorded data in ``old_data.csv`` and emits a CSV
-per calendar month following the ``{year} {month:02d}.CSV`` naming
-convention. It also writes a ``summary.csv`` file that aggregates the monthly
-and yearly totals to make the historical trends easier to inspect.
-
-Run the script once after updating ``old_data.csv`` to refresh the derived CSV
-files.
-"""
+"""Utility to backfill historical Free Fire progress data into monthly CSV files."""
 from __future__ import annotations
 
 import calendar
 import csv
+import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
@@ -24,9 +16,20 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.config import DEFAULT_UIDS, resolve_primary_uid
+
 BASE_DIR = PROJECT_ROOT
 SOURCE_PATH = BASE_DIR / "old_data.csv"
-OUTPUT_DIR = BASE_DIR
+
+def determine_target_uid() -> str:
+    list_raw = os.getenv("FREEFIRE_UIDS")
+    single_raw = os.getenv("FREEFIRE_UID")
+    return resolve_primary_uid(single_raw, list_raw, DEFAULT_UIDS)
+
+
+TARGET_UID = determine_target_uid()
+OUTPUT_DIR = (BASE_DIR / "players" / TARGET_UID)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 MONTHLY_HEADER = [
     "Date",
     "BR Score",
@@ -181,6 +184,7 @@ def main() -> None:
     data = load_data(SOURCE_PATH)
     grouped_by_year = write_monthly_files(data)
     write_summary(grouped_by_year)
+    print(f"Backfilled data for UID {TARGET_UID} into {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":

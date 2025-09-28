@@ -18,10 +18,30 @@ BASE_DIR = SCRIPT_DIR.parent
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-from scripts.config import DEFAULT_UID, build_api_url
+from scripts.config import DEFAULT_UIDS, build_api_url, parse_uid_list
 
-UID = os.getenv("FREEFIRE_UID", DEFAULT_UID)
-API_URL = build_api_url(UID)
+PLAYERS_DIR = BASE_DIR / "players"
+
+
+def ensure_player_dir(uid: str) -> Path:
+    path = PLAYERS_DIR / uid
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def determine_target_uids() -> List[str]:
+    list_raw = os.getenv("FREEFIRE_UIDS")
+    single_raw = os.getenv("FREEFIRE_UID")
+    if list_raw:
+        candidates = parse_uid_list(list_raw, DEFAULT_UIDS)
+    elif single_raw:
+        candidates = parse_uid_list(single_raw, DEFAULT_UIDS)
+    else:
+        candidates = DEFAULT_UIDS
+    if not candidates:
+        raise ValueError("No FREEFIRE UID configured.")
+    return candidates
+
 
 MONTHLY_HEADER = [
     "Date",
@@ -51,9 +71,10 @@ def format_mdY(dt: datetime) -> str:
     return f"{dt.month}/{dt.day}/{dt.year}"
 
 
-def monthly_file_path(dt: datetime) -> Path:
+def monthly_file_path(uid: str, dt: datetime) -> Path:
+    player_dir = ensure_player_dir(uid)
     filename = f"{dt.year} {dt.strftime('%m')}.CSV"
-    return BASE_DIR / filename
+    return player_dir / filename
 
 
 def ensure_monthly_header(path: Path) -> None:
@@ -87,9 +108,10 @@ def parse_monthly_filename(path: Path) -> Tuple[int, int]:
     return year, month
 
 
-def iter_monthly_files() -> Iterator[Path]:
+def iter_monthly_files(uid: str) -> Iterator[Path]:
+    player_dir = ensure_player_dir(uid)
     paths: List[Tuple[int, int, Path]] = []
-    for candidate in BASE_DIR.glob('*.[cC][sS][vV]'):
+    for candidate in player_dir.glob('*.[cC][sS][vV]'):
         if candidate.is_file():
             try:
                 year, month = parse_monthly_filename(candidate)
@@ -113,10 +135,10 @@ def parse_int(value: Optional[str]) -> Optional[int]:
         return None
 
 
-def load_last_logged_entry() -> Tuple[Optional[Dict[str, str]], Optional[Path]]:
+def load_last_logged_entry(uid: str) -> Tuple[Optional[Dict[str, str]], Optional[Path]]:
     last_row: Optional[Dict[str, str]] = None
     last_path: Optional[Path] = None
-    for path in iter_monthly_files():
+    for path in iter_monthly_files(uid):
         with path.open("r", newline="", encoding="utf-8") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
@@ -128,32 +150,18 @@ def load_last_logged_entry() -> Tuple[Optional[Dict[str, str]], Optional[Path]]:
 
 def append_monthly_entry(path: Path, row: Dict[str, object]) -> None:
     ensure_monthly_header(path)
-    today = row["Date"]
-    if today and monthly_already_logged(path, today):
-        return
-
-    ordered = [
-        row.get("Date", ""),
-        row.get("BR Score", ""),
-        row.get("Rank Gained", ""),
-        row.get("Likes", ""),
-        row.get("Likes Gained", ""),
-        row.get("XP", ""),
-        row.get("XP Gained", ""),
-        row.get("Notes", ""),
-    ]
-
     with path.open("a", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
-        writer.writerow(ordered)
+        writer.writerow([row.get(column, "") for column in MONTHLY_HEADER])
 
 
 def load_monthly_stats(path: Path) -> Tuple[int, int, Dict[str, float]]:
     year, month_number = parse_monthly_filename(path)
+    xp_values: List[int] = []
+    xp_gains: List[int] = []
+
     with path.open("r", newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
-        xp_values: List[int] = []
-        xp_gains: List[int] = []
         for row in reader:
             xp = parse_int(row.get("XP"))
             if xp is not None:
@@ -181,54 +189,55 @@ def load_monthly_stats(path: Path) -> Tuple[int, int, Dict[str, float]]:
     return year, month_number, stats
 
 
-def update_summary() -> None:
-    summary_path = BASE_DIR / "summary.csv"
+def update_summary(uid: str) -> None:
+    player_dir = ensure_player_dir(uid)
+    summary_path = player_dir / "summary.csv"
     month_stats: List[Tuple[int, int, Dict[str, float]]] = []
-    for path in iter_monthly_files():
+    for path in iter_monthly_files(uid):
         try:
             stats = load_monthly_stats(path)
         except ValueError:
             continue
         month_stats.append(stats)
 
-    if not month_stats:
-        return
-
     rows: List[List[str]] = []
-    by_year: Dict[int, List[Tuple[int, Dict[str, float]]]] = defaultdict(list)
+    if month_stats:
+        by_year: Dict[int, List[Tuple[int, Dict[str, float]]]] = defaultdict(list)
 
-    for year, month_number, stats in sorted(month_stats, key=lambda item: (item[0], item[1])):
-        by_year[year].append((month_number, stats))
-        rows.append(
-            [
-                str(year),
-                calendar.month_name[month_number],
-                str(int(stats["days_logged"])),
-                str(int(stats["start_xp"])),
-                str(int(stats["end_xp"])),
-                str(int(stats["total_gain"])),
-                f"{stats['avg_gain']:.2f}",
-            ]
-        )
+        for year, month_number, stats in sorted(
+            month_stats, key=lambda item: (item[0], item[1])
+        ):
+            by_year[year].append((month_number, stats))
+            rows.append(
+                [
+                    str(year),
+                    calendar.month_name[month_number],
+                    str(int(stats["days_logged"])),
+                    str(int(stats["start_xp"])),
+                    str(int(stats["end_xp"])),
+                    str(int(stats["total_gain"])),
+                    f"{stats['avg_gain']:.2f}",
+                ]
+            )
 
-    for year in sorted(by_year):
-        year_stats = sorted(by_year[year], key=lambda item: item[0])
-        start_xp = year_stats[0][1]["start_xp"]
-        end_xp = year_stats[-1][1]["end_xp"]
-        total_gain = sum(stat["total_gain"] for _, stat in year_stats)
-        days_logged = sum(stat["days_logged"] for _, stat in year_stats)
-        avg_gain = total_gain / days_logged if days_logged else 0
-        rows.append(
-            [
-                str(year),
-                "ALL",
-                str(int(days_logged)),
-                str(int(start_xp)),
-                str(int(end_xp)),
-                str(int(total_gain)),
-                f"{avg_gain:.2f}",
-            ]
-        )
+        for year in sorted(by_year):
+            year_stats = sorted(by_year[year], key=lambda item: item[0])
+            start_xp = year_stats[0][1]["start_xp"]
+            end_xp = year_stats[-1][1]["end_xp"]
+            total_gain = sum(stat["total_gain"] for _, stat in year_stats)
+            days_logged = sum(stat["days_logged"] for _, stat in year_stats)
+            avg_gain = total_gain / days_logged if days_logged else 0
+            rows.append(
+                [
+                    str(year),
+                    "ALL",
+                    str(int(days_logged)),
+                    str(int(start_xp)),
+                    str(int(end_xp)),
+                    str(int(total_gain)),
+                    f"{avg_gain:.2f}",
+                ]
+            )
 
     with summary_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.writer(handle)
@@ -236,23 +245,32 @@ def update_summary() -> None:
         writer.writerows(rows)
 
 
-def main() -> None:
+def process_uid(uid: str) -> None:
     now_colombo = datetime.now(TIMEZONE)
     today_str = format_mdY(now_colombo)
 
-    response = requests.get(API_URL, timeout=30)
-    response.raise_for_status()
-    data = response.json()
+    api_url = build_api_url(uid)
+    try:
+        response = requests.get(api_url, timeout=30)
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        print(f"[{uid}] Failed to fetch profile data: {exc}")
+        return
 
+    data = response.json()
     basic_info = data.get("basicInfo", {})
     ranking_points = int(basic_info.get("rankingPoints", 0))
     likes = int(basic_info.get("liked", 0))
     xp = int(basic_info.get("exp", 0))
 
-    current_month_path = monthly_file_path(now_colombo)
-    last_row, last_path = load_last_logged_entry()
-    if last_row and last_row.get("Date") == today_str and last_path == current_month_path:
-        print(f"Row for {today_str} already exists; no changes.")
+    current_month_path = monthly_file_path(uid, now_colombo)
+    last_row, last_path = load_last_logged_entry(uid)
+    if (
+        last_row
+        and last_row.get("Date") == today_str
+        and last_path == current_month_path
+    ):
+        print(f"[{uid}] Row for {today_str} already exists; no changes.")
         return
 
     last_br = parse_int(last_row.get("BR Score")) if last_row else None
@@ -275,8 +293,17 @@ def main() -> None:
     }
 
     append_monthly_entry(current_month_path, row)
-    update_summary()
-    print("Appended:", row)
+    update_summary(uid)
+    print(f"[{uid}] Appended: {row}")
+
+
+def main() -> None:
+    uids = determine_target_uids()
+    for uid in uids:
+        try:
+            process_uid(uid)
+        except Exception as exc:  # pylint: disable=broad-except
+            print(f"[{uid}] Unexpected failure: {exc}")
 
 
 if __name__ == "__main__":

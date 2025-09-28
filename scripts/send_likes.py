@@ -18,13 +18,29 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import (
     DEFAULT_LIKES_API_KEY,
-    DEFAULT_LIKES_UID,
+    DEFAULT_LIKES_UIDS,
     build_api_url,
     build_likes_api_url,
+    resolve_primary_uid,
 )
 
 TIMEZONE = ZoneInfo("Asia/Colombo")
-LIKES_LOG_PATH = PROJECT_ROOT / "likes_activity.csv"
+PLAYERS_DIR = PROJECT_ROOT / "players"
+
+
+def ensure_player_dir(uid: str) -> Path:
+    path = PLAYERS_DIR / uid
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+LIKES_UID = resolve_primary_uid(
+    os.getenv("FREEFIRE_LIKES_UID"),
+    os.getenv("FREEFIRE_LIKES_UIDS"),
+    DEFAULT_LIKES_UIDS,
+)
+PLAYER_DIR = ensure_player_dir(LIKES_UID)
+LIKES_LOG_PATH = PLAYER_DIR / "likes_activity.csv"
 LIKES_LOG_HEADER = [
     "Date",
     "Likes Before",
@@ -33,7 +49,6 @@ LIKES_LOG_HEADER = [
     "Success",
 ]
 
-LIKES_UID = os.getenv("FREEFIRE_LIKES_UID", DEFAULT_LIKES_UID)
 LIKES_API_KEY = os.getenv("FREEFIRE_LIKES_KEY", DEFAULT_LIKES_API_KEY)
 
 
