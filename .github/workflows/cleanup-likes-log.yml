@@ -22,7 +22,7 @@ jobs:
 
       - name: Clean likes log
         run: |
-          python scripts/cleanup_likes_log.py
+          python -m scripts.cleanup_likes_log
 
       - name: Commit & push if changed
         run: |
@@ -36,3 +36,4 @@ jobs:
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push
           fi
+
