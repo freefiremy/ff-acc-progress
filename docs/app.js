@@ -1,33 +1,35 @@
-﻿const REMOTE_BASE = 'https://raw.githubusercontent.com/rasikasrimal/ff-acc-progress/main';\nconst PLAYERS = [
+﻿const REMOTE_BASE = 'https://raw.githubusercontent.com/rasikasrimal/ff-acc-progress/main';
+
+const PLAYERS = [
   {
-    uid: "2805365702",
-    label: "Main Account",
-    description: "Full progress tracking (XP, BR score, likes).",
+    uid: '2805365702',
+    label: 'Main Account',
+    description: 'Full progress tracking (XP, BR score, likes).',
   },
   {
-    uid: "667352678",
-    label: "Likes Automation",
-    description: "Likes-only automation target.",
+    uid: '667352678',
+    label: 'Likes Automation',
+    description: 'Likes-only automation target.',
   },
 ];
 
 const MONTH_INDEX = {
-  January: "01",
-  February: "02",
-  March: "03",
-  April: "04",
-  May: "05",
-  June: "06",
-  July: "07",
-  August: "08",
-  September: "09",
-  October: "10",
-  November: "11",
-  December: "12",
+  January: '01',
+  February: '02',
+  March: '03',
+  April: '04',
+  May: '05',
+  June: '06',
+  July: '07',
+  August: '08',
+  September: '09',
+  October: '10',
+  November: '11',
+  December: '12',
 };
 
 async function loadCsv(path) {
-  const response = await fetch(path);
+  const response = await fetch(path, { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to load ${path}: ${response.status}`);
   }
@@ -40,17 +42,17 @@ async function loadCsv(path) {
 }
 
 function formatNumber(value) {
-  if (value === null || value === undefined || value === "") return "-";
+  if (value === null || value === undefined || value === '') return '-';
   const num = Number(value);
   if (Number.isNaN(num)) return value;
   return num.toLocaleString();
 }
 
 function getLatestMonth(summaryRows) {
-  const monthRows = summaryRows.filter((row) => row.Month && row.Month !== "ALL");
+  const monthRows = summaryRows.filter((row) => row.Month && row.Month !== 'ALL');
   if (!monthRows.length) return null;
   const last = monthRows[monthRows.length - 1];
-  const monthNumber = MONTH_INDEX[last.Month] || "01";
+  const monthNumber = MONTH_INDEX[last.Month] || '01';
   return {
     year: last.Year,
     monthName: last.Month,
@@ -59,9 +61,9 @@ function getLatestMonth(summaryRows) {
 }
 
 function renderNav(players) {
-  const nav = document.getElementById("player-nav");
+  const nav = document.getElementById('player-nav');
   players.forEach((player) => {
-    const link = document.createElement("a");
+    const link = document.createElement('a');
     link.href = `#player-${player.uid}`;
     link.textContent = player.label;
     nav.appendChild(link);
@@ -69,8 +71,8 @@ function renderNav(players) {
 }
 
 function createSection(player) {
-  const section = document.createElement("section");
-  section.className = "section";
+  const section = document.createElement('section');
+  section.className = 'section';
   section.id = `player-${player.uid}`;
 
   section.innerHTML = `
@@ -107,21 +109,26 @@ function createSection(player) {
 
 function populateCards(uid, summaryRow) {
   const container = document.getElementById(`cards-${uid}`);
-  container.innerHTML = "";
+  container.innerHTML = '';
   if (!summaryRow) return;
 
-  const avgDaily = Number(summaryRow["Average Daily XP Gained"]);
+  const avgDaily = Number(summaryRow['Average Daily XP Gained']);
   const cards = [
-    { label: "Days Logged", value: formatNumber(summaryRow["Days Logged"]) },
-    { label: "Start XP", value: formatNumber(summaryRow["Start XP"]) },
-    { label: "End XP", value: formatNumber(summaryRow["End XP"]) },
-    { label: "Total XP Gain", value: formatNumber(summaryRow["Total XP Gained"]) },
-    { label: "Avg Daily XP", value: Number.isFinite(avgDaily) ? avgDaily.toFixed(2) : formatNumber(summaryRow["Average Daily XP Gained"]) },
+    { label: 'Days Logged', value: formatNumber(summaryRow['Days Logged']) },
+    { label: 'Start XP', value: formatNumber(summaryRow['Start XP']) },
+    { label: 'End XP', value: formatNumber(summaryRow['End XP']) },
+    { label: 'Total XP Gain', value: formatNumber(summaryRow['Total XP Gained']) },
+    {
+      label: 'Avg Daily XP',
+      value: Number.isFinite(avgDaily)
+        ? avgDaily.toFixed(2)
+        : formatNumber(summaryRow['Average Daily XP Gained']),
+    },
   ];
 
   cards.forEach((card) => {
-    const div = document.createElement("div");
-    div.className = "card";
+    const div = document.createElement('div');
+    div.className = 'card';
     div.innerHTML = `
       <div class="card__label">${card.label}</div>
       <div class="card__value">${card.value}</div>
@@ -132,16 +139,16 @@ function populateCards(uid, summaryRow) {
 
 function populateLikesTable(uid, likesRows) {
   const tbody = document.querySelector(`#likes-table-${uid} tbody`);
-  tbody.innerHTML = "";
+  tbody.innerHTML = '';
 
   likesRows.slice(-10).reverse().forEach((row) => {
-    const tr = document.createElement("tr");
+    const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td>${row.Date || "-"}</td>
-      <td>${formatNumber(row["Likes Before"])}</td>
-      <td>${formatNumber(row["Likes After"])}</td>
-      <td>${formatNumber(row["Likes Received"])}</td>
-      <td>${(row.Success || "").toString().toUpperCase()}</td>
+      <td>${row.Date || '-'}</td>
+      <td>${formatNumber(row['Likes Before'])}</td>
+      <td>${formatNumber(row['Likes After'])}</td>
+      <td>${formatNumber(row['Likes Received'])}</td>
+      <td>${(row.Success || '').toString().toUpperCase()}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -150,25 +157,25 @@ function populateLikesTable(uid, likesRows) {
 function renderChart(uid, series, monthLabel) {
   const target = document.getElementById(`chart-${uid}`);
   if (!series.length) {
-    target.innerHTML = "<p>No daily data available for the latest month.</p>";
+    target.innerHTML = '<p>No daily data available for the latest month.</p>';
     return;
   }
 
   const options = {
     chart: {
-      type: "area",
+      type: 'area',
       height: 320,
       toolbar: { show: false },
-      fontFamily: "Inter, sans-serif",
-      foreColor: "#e2e8f0",
+      fontFamily: 'Inter, sans-serif',
+      foreColor: '#e2e8f0',
     },
     stroke: {
       width: 2,
-      curve: "smooth",
+      curve: 'smooth',
     },
     dataLabels: { enabled: false },
     fill: {
-      type: "gradient",
+      type: 'gradient',
       gradient: {
         shadeIntensity: 1,
         opacityFrom: 0.45,
@@ -176,34 +183,34 @@ function renderChart(uid, series, monthLabel) {
         stops: [0, 90, 100],
       },
     },
-    colors: ["#38bdf8"],
+    colors: ['#38bdf8'],
     series: [
       {
-        name: "XP",
+        name: 'XP',
         data: series.map((point) => ({ x: point.date, y: point.xp })),
       },
     ],
     xaxis: {
-      type: "category",
+      type: 'category',
       labels: {
-        style: { colors: "#94a3b8" },
+        style: { colors: '#94a3b8' },
       },
     },
     yaxis: {
       labels: {
         formatter: (value) => Number(value).toLocaleString(),
-        style: { colors: "#94a3b8" },
+        style: { colors: '#94a3b8' },
       },
     },
     tooltip: {
-      theme: "dark",
+      theme: 'dark',
       y: {
         formatter: (value) => Number(value).toLocaleString(),
       },
     },
     title: {
       text: `Daily XP for ${monthLabel}`,
-      style: { fontSize: "16px", color: "#e2e8f0" },
+      style: { fontSize: '16px', color: '#e2e8f0' },
     },
   };
 
@@ -217,7 +224,7 @@ async function loadPlayer(uid) {
 
   const latest = getLatestMonth(summary);
   let dailySeries = [];
-  let monthLabel = "";
+  let monthLabel = '';
 
   if (latest) {
     const monthlyFile = encodeURIComponent(`${latest.year} ${latest.monthNumber}.CSV`);
@@ -235,7 +242,8 @@ async function loadPlayer(uid) {
     }
   }
 
-  const fallbackRow = summary.find((row) => row.Month === "ALL") || summary[summary.length - 1] || null;
+  const fallbackRow =
+    summary.find((row) => row.Month === 'ALL') || summary[summary.length - 1] || null;
   const latestSummaryRow = latest
     ? summary.find((row) => row.Month === latest.monthName && row.Year === latest.year) || fallbackRow
     : fallbackRow;
@@ -247,14 +255,16 @@ async function loadPlayer(uid) {
     monthLabel,
     latestSummaryRow,
   };
-}\n\nfunction setBadge(uid, text) {
+}
+
+function setBadge(uid, text) {
   const badge = document.getElementById(`badge-${uid}`);
   if (badge) badge.textContent = text;
 }
 
 async function init() {
   renderNav(PLAYERS);
-  const container = document.getElementById("player-sections");
+  const container = document.getElementById('player-sections');
 
   PLAYERS.forEach((player) => {
     const section = createSection(player);
@@ -264,22 +274,20 @@ async function init() {
   for (const player of PLAYERS) {
     try {
       const data = await loadPlayer(player.uid);
-      const summaryRow = data.latestSummaryRow || data.summary.find((row) => row.Month === "ALL") || data.summary[data.summary.length - 1];
+      const summaryRow =
+        data.latestSummaryRow ||
+        data.summary.find((row) => row.Month === 'ALL') ||
+        data.summary[data.summary.length - 1] ||
+        null;
       populateCards(player.uid, summaryRow);
       populateLikesTable(player.uid, data.likes);
-      renderChart(player.uid, data.dailySeries, data.monthLabel || "latest month");
-      setBadge(player.uid, `Latest month: ${data.monthLabel || "N/A"}`);
+      renderChart(player.uid, data.dailySeries, data.monthLabel || 'latest month');
+      setBadge(player.uid, `Latest month: ${data.monthLabel || 'N/A'}`);
     } catch (error) {
       console.error(`Failed to render player ${player.uid}:`, error);
-      setBadge(player.uid, "Data unavailable");
+      setBadge(player.uid, 'Data unavailable');
     }
   }
 }
 
-document.addEventListener("DOMContentLoaded", init);
-
-
-
-
-
-
+document.addEventListener('DOMContentLoaded', init);
