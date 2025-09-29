@@ -62,6 +62,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Automated likes update"
-            git pull --rebase origin ""
-            git push
+            BRANCH="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
+            git push origin HEAD:"$BRANCH"
           fi
+

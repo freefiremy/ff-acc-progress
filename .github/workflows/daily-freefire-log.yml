@@ -47,6 +47,7 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "Daily update: freefire log"
-            git pull --rebase origin "$GITHUB_REF_NAME"
-            git push
+            BRANCH="${GITHUB_REF_NAME:-$(git rev-parse --abbrev-ref HEAD)}"
+            git push origin HEAD:"$BRANCH"
           fi
+
