@@ -1,4 +1,4 @@
-# ff-acc-progress
+﻿# ff-acc-progress
 
 This repository tracks daily Free Fire account progress automatically.
 
@@ -28,3 +28,10 @@ This repository tracks daily Free Fire account progress automatically.
   python scripts/fetch_and_append.py
   python scripts/send_likes.py  # optional: run the likes automation locally
   ```
+
+## Web Dashboard
+
+- A static dashboard lives in `docs/` (GitHub Pages ready) and visualises the CSV data using Papa Parse and ApexCharts.
+- The site pulls the per-player CSVs directly from `players/<UID>/` and mirrors the default UID files at the repository root for backwards compatibility.
+- Enable GitHub Pages in repository settings (source: `main`, folder: `/docs`) to publish the dashboard.
+
