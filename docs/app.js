@@ -1,4 +1,4 @@
-﻿const PLAYERS = [
+﻿const REMOTE_BASE = 'https://raw.githubusercontent.com/rasikasrimal/ff-acc-progress/main';\nconst PLAYERS = [
   {
     uid: "2805365702",
     label: "Main Account",
@@ -212,17 +212,17 @@ function renderChart(uid, series, monthLabel) {
 }
 
 async function loadPlayer(uid) {
-  const base = `../players/${uid}`;
-  const summary = await loadCsv(`${base}/summary.csv`);
-  const likes = await loadCsv(`${base}/likes_activity.csv`).catch(() => []);
+  const summary = await loadCsv(`${REMOTE_BASE}/players/${uid}/summary.csv`);
+  const likes = await loadCsv(`${REMOTE_BASE}/players/${uid}/likes_activity.csv`).catch(() => []);
 
   const latest = getLatestMonth(summary);
   let dailySeries = [];
   let monthLabel = "";
+
   if (latest) {
-    const filePath = `${base}/${latest.year} ${latest.monthNumber}.CSV`;
+    const monthlyFile = encodeURIComponent(`${latest.year} ${latest.monthNumber}.CSV`);
     try {
-      const monthly = await loadCsv(filePath);
+      const monthly = await loadCsv(`${REMOTE_BASE}/players/${uid}/${monthlyFile}`);
       dailySeries = monthly
         .filter((row) => row.Date && row.XP)
         .map((row) => ({
@@ -235,18 +235,19 @@ async function loadPlayer(uid) {
     }
   }
 
+  const fallbackRow = summary.find((row) => row.Month === "ALL") || summary[summary.length - 1] || null;
+  const latestSummaryRow = latest
+    ? summary.find((row) => row.Month === latest.monthName && row.Year === latest.year) || fallbackRow
+    : fallbackRow;
+
   return {
     summary,
     likes,
     dailySeries,
     monthLabel,
-    latestSummaryRow: latest
-      ? summary.find((row) => row.Month === latest.monthName && row.Year === latest.year)
-      : summary.find((row) => row.Month === "ALL") || null,
+    latestSummaryRow,
   };
-}
-
-function setBadge(uid, text) {
+}\n\nfunction setBadge(uid, text) {
   const badge = document.getElementById(`badge-${uid}`);
   if (badge) badge.textContent = text;
 }
@@ -276,6 +277,9 @@ async function init() {
 }
 
 document.addEventListener("DOMContentLoaded", init);
+
+
+
 
 
 
