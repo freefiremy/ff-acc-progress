@@ -6,6 +6,7 @@ import csv
 import os
 import sys
 from collections import defaultdict
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
@@ -194,6 +195,18 @@ def load_monthly_stats(path: Path) -> Tuple[int, int, Dict[str, float]]:
     return year, month_number, stats
 
 
+
+def sync_default_exports(uid: str, month_path: Path) -> None:
+    """Copy default UID exports back to the root for compatibility."""
+    if not DEFAULT_UIDS or uid != DEFAULT_UIDS[0]:
+        return
+    root_month_path = BASE_DIR / month_path.name
+    shutil.copyfile(month_path, root_month_path)
+    summary_src = ensure_player_dir(uid) / 'summary.csv'
+    summary_dst = BASE_DIR / 'summary.csv'
+    if summary_src.exists():
+        shutil.copyfile(summary_src, summary_dst)
+
 def update_summary(uid: str) -> None:
     player_dir = ensure_player_dir(uid)
     summary_path = player_dir / "summary.csv"
@@ -299,6 +312,7 @@ def process_uid(uid: str) -> None:
 
     append_monthly_entry(current_month_path, row)
     update_summary(uid)
+    sync_default_exports(uid, current_month_path)
     print(f"[{uid}] Appended: {row}")
 
 

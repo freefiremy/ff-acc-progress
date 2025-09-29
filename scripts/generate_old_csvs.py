@@ -7,6 +7,7 @@ import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
@@ -176,6 +177,16 @@ def write_summary(data_by_year: Dict[int, List[DataPoint]]) -> None:
         writer.writerow(SUMMARY_HEADER)
         writer.writerows(rows)
 
+def sync_default_exports() -> None:
+    """Copy default UID exports to the repository root for compatibility."""
+    if DEFAULT_UIDS and TARGET_UID == DEFAULT_UIDS[0]:
+        for csv_path in OUTPUT_DIR.glob('*.CSV'):
+            shutil.copyfile(csv_path, BASE_DIR / csv_path.name)
+        summary_path = OUTPUT_DIR / 'summary.csv'
+        if summary_path.exists():
+            shutil.copyfile(summary_path, BASE_DIR / 'summary.csv')
+
+
 
 def main() -> None:
     if not SOURCE_PATH.exists():
@@ -184,6 +195,7 @@ def main() -> None:
     data = load_data(SOURCE_PATH)
     grouped_by_year = write_monthly_files(data)
     write_summary(grouped_by_year)
+    sync_default_exports()
     print(f"Backfilled data for UID {TARGET_UID} into {OUTPUT_DIR}")
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
+import shutil
 from pathlib import Path
 from typing import List
 
@@ -23,6 +24,13 @@ LIKES_LOG_HEADER = [
     "Success",
 ]
 
+
+
+def sync_default_likes_log(uid: str, path: Path) -> None:
+    """Mirror the cleaned default likes log to the repository root."""
+    if not DEFAULT_LIKES_UIDS or uid != DEFAULT_LIKES_UIDS[0]:
+        return
+    shutil.copyfile(path, PROJECT_ROOT / 'likes_activity.csv')
 
 def ensure_player_dir(uid: str) -> Path:
     path = PLAYERS_DIR / uid
@@ -92,6 +100,7 @@ def main() -> None:
     for uid in determine_target_uids() or [DEFAULT_LIKES_UIDS[0]]:
         path = log_path_for(uid)
         if clean_likes_log(path):
+            sync_default_likes_log(uid, path)
             changed_any = True
     if not changed_any:
         print("No logs required cleaning.")

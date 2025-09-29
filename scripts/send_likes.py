@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -55,6 +56,13 @@ def determine_target_uids() -> List[str]:
     cleaned = [uid for uid in candidates if uid]
     return cleaned if cleaned else DEFAULT_LIKES_UIDS
 
+
+
+def sync_default_likes_log(uid: str, path: Path) -> None:
+    """Copy the default likes log back to the repository root."""
+    if not DEFAULT_LIKES_UIDS or uid != DEFAULT_LIKES_UIDS[0]:
+        return
+    shutil.copyfile(path, PROJECT_ROOT / 'likes_activity.csv')
 
 def ensure_log_header(path: Path) -> None:
     if path.exists():
@@ -164,6 +172,7 @@ def process_uid(uid: str) -> None:
             0,
             False,
         )
+        sync_default_likes_log(uid, log_path)
         print(f"[{uid}] Likes API request failed: {exc}")
         return
 
@@ -184,6 +193,7 @@ def process_uid(uid: str) -> None:
             likes_received,
             True,
         )
+        sync_default_likes_log(uid, log_path)
         print(
             f"[{uid}] Likes API success:",
             {
@@ -203,6 +213,7 @@ def process_uid(uid: str) -> None:
         0,
         False,
     )
+    sync_default_likes_log(uid, log_path)
     message = payload.get("message") or payload.get("response", {}).get("message")
     print(
         f"[{uid}] Likes API did not grant likes:",
