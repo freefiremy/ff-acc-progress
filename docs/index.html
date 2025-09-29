@@ -1,0 +1,42 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Free Fire Progress Dashboard</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script defer src="app.js"></script>
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero__content">
+        <h1>Free Fire Progress Dashboard</h1>
+        <p class="hero__tagline">
+          Live overview of daily stats and automated likes for the tracked Free Fire accounts. Updated directly from the repository CSV logs.
+        </p>
+        <nav class="hero__nav" id="player-nav"></nav>
+      </div>
+    </header>
+
+    <main class="layout" id="player-sections">
+      <!-- Player sections will be injected by app.js -->
+    </main>
+
+    <footer class="footer">
+      <div class="footer__inner">
+        <p>
+          Built with <a href="https://www.apexcharts.com/" target="_blank" rel="noreferrer">ApexCharts</a>
+          and <a href="https://www.papaparse.com/" target="_blank" rel="noreferrer">Papa Parse</a>. Hosted on GitHub Pages.
+        </p>
+        <p>
+          Data sources: CSV exports under <code>players/&lt;UID&gt;/</code> in this repository. Likes automation defaults to UID <code>667352678</code>.
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
