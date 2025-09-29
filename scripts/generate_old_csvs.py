@@ -1,20 +1,13 @@
-"""Utility to backfill historical Free Fire progress data into monthly CSV files.
-
-This script reads the manually recorded data in ``old_data.csv`` and emits a CSV
-per calendar month following the ``{year} {month:02d}.CSV`` naming
-convention. It also writes a ``summary.csv`` file that aggregates the monthly
-and yearly totals to make the historical trends easier to inspect.
-
-Run the script once after updating ``old_data.csv`` to refresh the derived CSV
-files.
-"""
+"""Utility to backfill historical Free Fire progress data into monthly CSV files."""
 from __future__ import annotations
 
 import calendar
 import csv
+import os
 import sys
 from collections import defaultdict
 from dataclasses import dataclass
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List
@@ -24,9 +17,20 @@ PROJECT_ROOT = SCRIPT_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts.config import DEFAULT_UIDS, resolve_primary_uid
+
 BASE_DIR = PROJECT_ROOT
 SOURCE_PATH = BASE_DIR / "old_data.csv"
-OUTPUT_DIR = BASE_DIR
+
+def determine_target_uid() -> str:
+    list_raw = os.getenv("FREEFIRE_UIDS")
+    single_raw = os.getenv("FREEFIRE_UID")
+    return resolve_primary_uid(single_raw, list_raw, DEFAULT_UIDS)
+
+
+TARGET_UID = determine_target_uid()
+OUTPUT_DIR = (BASE_DIR / "players" / TARGET_UID)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 MONTHLY_HEADER = [
     "Date",
     "BR Score",
@@ -173,6 +177,16 @@ def write_summary(data_by_year: Dict[int, List[DataPoint]]) -> None:
         writer.writerow(SUMMARY_HEADER)
         writer.writerows(rows)
 
+def sync_default_exports() -> None:
+    """Copy default UID exports to the repository root for compatibility."""
+    if DEFAULT_UIDS and TARGET_UID == DEFAULT_UIDS[0]:
+        for csv_path in OUTPUT_DIR.glob('*.CSV'):
+            shutil.copyfile(csv_path, BASE_DIR / csv_path.name)
+        summary_path = OUTPUT_DIR / 'summary.csv'
+        if summary_path.exists():
+            shutil.copyfile(summary_path, BASE_DIR / 'summary.csv')
+
+
 
 def main() -> None:
     if not SOURCE_PATH.exists():
@@ -181,6 +195,8 @@ def main() -> None:
     data = load_data(SOURCE_PATH)
     grouped_by_year = write_monthly_files(data)
     write_summary(grouped_by_year)
+    sync_default_exports()
+    print(f"Backfilled data for UID {TARGET_UID} into {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":

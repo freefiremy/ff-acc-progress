@@ -1,12 +1,21 @@
-"""Prune unsuccessful entries from the likes activity log."""
+"""Prune unsuccessful entries from the likes activity logs."""
 from __future__ import annotations
 
 import csv
+import os
+import sys
+import shutil
 from pathlib import Path
+from typing import List
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parent
-LIKES_LOG_PATH = PROJECT_ROOT / "likes_activity.csv"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+PLAYERS_DIR = PROJECT_ROOT / "players"
+
+from scripts.config import DEFAULT_LIKES_UIDS, parse_uid_list
+
 LIKES_LOG_HEADER = [
     "Date",
     "Likes Before",
@@ -16,7 +25,36 @@ LIKES_LOG_HEADER = [
 ]
 
 
-def clean_likes_log(path: Path = LIKES_LOG_PATH) -> bool:
+
+def sync_default_likes_log(uid: str, path: Path) -> None:
+    """Mirror the cleaned default likes log to the repository root."""
+    if not DEFAULT_LIKES_UIDS or uid != DEFAULT_LIKES_UIDS[0]:
+        return
+    shutil.copyfile(path, PROJECT_ROOT / 'likes_activity.csv')
+
+def ensure_player_dir(uid: str) -> Path:
+    path = PLAYERS_DIR / uid
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def determine_target_uids() -> List[str]:
+    list_raw = os.getenv("FREEFIRE_LIKES_UIDS")
+    single_raw = os.getenv("FREEFIRE_LIKES_UID")
+    if list_raw:
+        candidates = parse_uid_list(list_raw, DEFAULT_LIKES_UIDS)
+    elif single_raw:
+        candidates = parse_uid_list(single_raw, DEFAULT_LIKES_UIDS)
+    else:
+        candidates = DEFAULT_LIKES_UIDS
+    return [uid for uid in candidates if uid]
+
+
+def log_path_for(uid: str) -> Path:
+    return ensure_player_dir(uid) / "likes_activity.csv"
+
+
+def clean_likes_log(path: Path) -> bool:
     """Return True if the log was modified by removing failed rows or normalising case."""
     if not path.exists():
         print(f"Log file not found: {path}")
@@ -53,12 +91,19 @@ def clean_likes_log(path: Path = LIKES_LOG_PATH) -> bool:
             writer.writerow([row.get(column, "") for column in LIKES_LOG_HEADER])
 
     removed = len(rows) - len(kept_rows)
-    print(f"Removed {removed} unsuccessful entries; {len(kept_rows)} remain.")
+    print(f"Removed {removed} unsuccessful entries; {len(kept_rows)} remain in {path.parent.name}.")
     return True
 
 
 def main() -> None:
-    clean_likes_log()
+    changed_any = False
+    for uid in determine_target_uids() or [DEFAULT_LIKES_UIDS[0]]:
+        path = log_path_for(uid)
+        if clean_likes_log(path):
+            sync_default_likes_log(uid, path)
+            changed_any = True
+    if not changed_any:
+        print("No logs required cleaning.")
 
 
 if __name__ == "__main__":

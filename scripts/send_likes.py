@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import os
 import sys
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -18,13 +19,14 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from scripts.config import (
     DEFAULT_LIKES_API_KEY,
-    DEFAULT_LIKES_UID,
+    DEFAULT_LIKES_UIDS,
     build_api_url,
     build_likes_api_url,
+    parse_uid_list,
 )
 
 TIMEZONE = ZoneInfo("Asia/Colombo")
-LIKES_LOG_PATH = PROJECT_ROOT / "likes_activity.csv"
+PLAYERS_DIR = PROJECT_ROOT / "players"
 LIKES_LOG_HEADER = [
     "Date",
     "Likes Before",
@@ -33,9 +35,34 @@ LIKES_LOG_HEADER = [
     "Success",
 ]
 
-LIKES_UID = os.getenv("FREEFIRE_LIKES_UID", DEFAULT_LIKES_UID)
 LIKES_API_KEY = os.getenv("FREEFIRE_LIKES_KEY", DEFAULT_LIKES_API_KEY)
 
+
+def ensure_player_dir(uid: str) -> Path:
+    path = PLAYERS_DIR / uid
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def determine_target_uids() -> List[str]:
+    list_raw = os.getenv("FREEFIRE_LIKES_UIDS")
+    single_raw = os.getenv("FREEFIRE_LIKES_UID")
+    if list_raw:
+        candidates = parse_uid_list(list_raw, DEFAULT_LIKES_UIDS)
+    elif single_raw:
+        candidates = parse_uid_list(single_raw, DEFAULT_LIKES_UIDS)
+    else:
+        candidates = DEFAULT_LIKES_UIDS
+    cleaned = [uid for uid in candidates if uid]
+    return cleaned if cleaned else DEFAULT_LIKES_UIDS
+
+
+
+def sync_default_likes_log(uid: str, path: Path) -> None:
+    """Copy the default likes log back to the repository root."""
+    if not DEFAULT_LIKES_UIDS or uid != DEFAULT_LIKES_UIDS[0]:
+        return
+    shutil.copyfile(path, PROJECT_ROOT / 'likes_activity.csv')
 
 def ensure_log_header(path: Path) -> None:
     if path.exists():
@@ -90,7 +117,7 @@ def safe_current_likes(uid: str) -> int:
     try:
         return fetch_current_likes(uid)
     except Exception as exc:  # pylint: disable=broad-except
-        print(f"Failed to obtain likes count for logging: {exc}")
+        print(f"[{uid}] Failed to obtain likes count for logging: {exc}")
         return 0
 
 
@@ -123,27 +150,30 @@ def call_likes_api(uid: str, api_key: str) -> Dict[str, object]:
     return response.json()
 
 
-def main() -> None:
+def process_uid(uid: str) -> None:
+    player_dir = ensure_player_dir(uid)
+    log_path = player_dir / "likes_activity.csv"
     now_colombo = datetime.now(TIMEZONE)
     today_str = now_colombo.strftime("%Y-%m-%d")
 
-    if success_already_logged(LIKES_LOG_PATH, today_str):
-        print("Likes already sent successfully today; skipping API call.")
+    if success_already_logged(log_path, today_str):
+        print(f"[{uid}] Likes already sent successfully today; skipping API call.")
         return
 
     try:
-        payload = call_likes_api(LIKES_UID, LIKES_API_KEY)
+        payload = call_likes_api(uid, LIKES_API_KEY)
     except requests.RequestException as exc:
-        likes_current = safe_current_likes(LIKES_UID)
+        likes_current = safe_current_likes(uid)
         append_log_entry(
-            LIKES_LOG_PATH,
+            log_path,
             today_str,
             likes_current,
             likes_current,
             0,
             False,
         )
-        print(f"Likes API request failed: {exc}")
+        sync_default_likes_log(uid, log_path)
+        print(f"[{uid}] Likes API request failed: {exc}")
         return
 
     status = payload.get("status")
@@ -153,18 +183,19 @@ def main() -> None:
         likes_after = parse_int(response.get("LikesafterCommand"))
         likes_received = parse_int(response.get("LikesGivenByAPI")) or 0
         if likes_before is None or likes_after is None:
-            likes_before = safe_current_likes(LIKES_UID)
+            likes_before = safe_current_likes(uid)
             likes_after = likes_before + likes_received
         append_log_entry(
-            LIKES_LOG_PATH,
+            log_path,
             today_str,
             likes_before,
             likes_after,
             likes_received,
             True,
         )
+        sync_default_likes_log(uid, log_path)
         print(
-            "Likes API success:",
+            f"[{uid}] Likes API success:",
             {
                 "likes_before": likes_before,
                 "likes_after": likes_after,
@@ -173,24 +204,30 @@ def main() -> None:
         )
         return
 
-    # Any non-success status is treated as failure for logging purposes.
-    likes_current = safe_current_likes(LIKES_UID)
+    likes_current = safe_current_likes(uid)
     append_log_entry(
-        LIKES_LOG_PATH,
+        log_path,
         today_str,
         likes_current,
         likes_current,
         0,
         False,
     )
+    sync_default_likes_log(uid, log_path)
     message = payload.get("message") or payload.get("response", {}).get("message")
     print(
-        "Likes API did not grant likes:",
+        f"[{uid}] Likes API did not grant likes:",
         {
             "status": status,
             "message": message,
         },
     )
+
+
+def main() -> None:
+    uids = determine_target_uids()
+    for uid in uids:
+        process_uid(uid)
 
 
 if __name__ == "__main__":
